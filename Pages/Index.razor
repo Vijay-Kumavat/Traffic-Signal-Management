@@ -1,0 +1,299 @@
+﻿@page "/"
+
+<PageTitle>TSM</PageTitle>
+
+<div class="container w-75">
+    <h1 class="text-center mt-3">Traffic Signal Management</h1>
+    @if (IsShowAnalyzer)
+    {
+        <div class="header-section d-flex align-items-center justify-content-between mt-4">
+            <h4 class="mb-0">Traffic Analyzer</h4>
+            <button type="button" class="btn btn-primary" @onclick="GoToConfiguration">@("< Settings")</button>
+        </div>
+        <div class="border border-3 rounded p-4 mt-4">
+            <div class="row">
+                <div class="col-md-7">
+                    <form @onsubmit="SaveOrUpdateDirection">
+                        <div class="form-group row mb-3">
+                            <label for="time" class="col-sm-6 col-form-label">Time:</label>
+                            <div class="col-sm-6">
+                                <span>@(interval + " seconds")</span>
+                            </div>
+                        </div>
+                        <div class="form-group row mb-3">
+                            <label for="currentOpen" class="col-sm-6 col-form-label">Current Open:</label>
+                            <div class="col-sm-6">
+                                <span>@currentOpen</span>
+                            </div>
+                        </div>
+                        <div class="form-group row mb-3">
+                            <label for="nextOpen" class="col-sm-6 col-form-label">Next Open:</label>
+                            <div class="col-sm-6">
+                                <span>@nextOpen</span>
+                            </div>
+                        </div>
+                        <div class="form-group row mb-3">
+                            <label for="direction" class="col-sm-6 col-form-label">Direction:</label>
+                            <div class="col-sm-6">
+                                <span>@selectedDirection</span>
+                            </div>
+                        </div>
+                        <div class="form-group row mb-3">
+                            <label for="remain" class="col-sm-6 col-form-label">Remaining Time:</label>
+                            <div class="col-sm-6">
+                                <span>@elapsedTime</span>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-5">
+                    <div class="text-center" style="position: relative; height: 300px;">
+                        <button type="button" id="buttonA" class="btn @buttonClasses["A"] btn-lg signalbutton" style="position: absolute;top: 0%;left: 40%;">A</button>
+                        <button type="button" id="buttonB" class="btn @buttonClasses["B"] btn-lg signalbutton" style="position: absolute;top: 30%;left: 80%;">B</button>
+                        <button type="button" id="buttonC" class="btn @buttonClasses["C"] btn-lg signalbutton" style="position: absolute;top: 60%;left: 40%;">C</button>
+                        <button type="button" id="buttonD" class="btn @buttonClasses["D"] btn-lg signalbutton" style="position: absolute;top: 30%;left: 0%;">D</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="global-configuration mt-4">
+            <div class="header-section d-flex align-items-center justify-content-between mt-4">
+                <h4 class="mb-0">Global Configuration</h4>
+            </div>
+            <div class="border border-3 rounded p-4 mt-4">
+                <form @onsubmit="SaveOrUpdateDirection">
+                    <div class="form-group row mb-3">
+                        <label for="direction" class="col-sm-2 col-form-label">Direction:</label>
+                        <div class="col-sm-4">
+                            <select class="form-control" id="direction" @bind="selectedDirection" required>
+                                <option value="" disabled selected>Select Direction</option>
+                                <option value="Clockwise">Clockwise</option>
+                                <option value="AntiClockwise">Anti-Clockwise</option>
+                                <option value="UpDown">Up-Down</option>
+                                <option value="RightLeft">Right-Left</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group row mb-3">
+                        <label for="interval" class="col-sm-2 col-form-label">Interval:</label>
+                        <div class="col-sm-4">
+                            <input type="number" class="form-control" id="interval" @bind-value="interval" required />
+                        </div>
+                    </div>
+                    <div class="form-group row mb-3">
+                        <div class="col-sm-4 offset-sm-2">
+                            <button type="submit" class="btn btn-primary">Save/Update</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+</div>
+
+
+@code {
+    string? selectedDirection { get; set; }
+    int? interval { get; set; } = null;
+    bool IsShowAnalyzer { get; set; }
+    System.Timers.Timer? timer { get; set; }
+    TimeSpan elapsedTime;
+    string? currentOpen { get; set; }
+    string? nextOpen { get; set; }
+    Dictionary<string, string> buttonClasses = new Dictionary<string, string>()
+    {
+        {"A", "btn-danger"},
+        {"B", "btn-danger"},
+        {"C", "btn-danger"},
+        {"D", "btn-danger"}
+    };
+
+    void SaveOrUpdateDirection()
+    {
+        elapsedTime = TimeSpan.FromSeconds((double)interval!);
+        timer = new System.Timers.Timer(1000);
+        timer.Elapsed += TimerElapsed!;
+        IsShowAnalyzer = true;
+        timer.Start();
+        SetDirection();
+        StateHasChanged();
+    }
+
+    void SetDirection()
+    {
+        switch (selectedDirection)
+        {
+            case "Clockwise":
+                SetDirectionClockWise();
+                break;
+            case "AntiClockwise":
+                SetDirectionClockWise(true);
+                break;
+            case "UpDown":
+                SetDirectionRightLeft(true);
+                break;
+            case "RightLeft":
+                SetDirectionRightLeft();
+                break;
+            default:
+                break;
+        }
+    }
+
+    void GoToConfiguration()
+    {
+        IsShowAnalyzer = !IsShowAnalyzer;
+        if (timer != null)
+        {
+            timer.Stop();
+            timer.Dispose();
+            timer = null!;
+        }
+        selectedDirection = null;
+        interval = null;
+        currentOpen = null;
+        nextOpen = null;
+        ResetButtonClass();
+    }
+
+    void SetDirectionClockWise(bool isAntiClockWise = false)
+    {
+        currentOpen = "A";
+        if (isAntiClockWise)
+        {
+            nextOpen = "D";
+            ResetButtonClass();
+            buttonClasses[currentOpen!] = "btn-success";
+        }
+        else
+        {
+            nextOpen = "B";
+            ResetButtonClass();
+            buttonClasses[currentOpen!] = "btn-success";
+        }
+    }
+
+    void SetDirectionRightLeft(bool isUpDown = false)
+    {
+        if (isUpDown)
+        {
+            currentOpen = "A";
+            nextOpen = "C";
+            ResetButtonClass();
+            buttonClasses[currentOpen!] = "btn-success";
+        }
+        else
+        {
+            currentOpen = "B";
+            nextOpen = "D";
+            ResetButtonClass();
+            buttonClasses[currentOpen!] = "btn-success";
+        }
+    }
+
+    void TimerElapsed(object sender, System.Timers.ElapsedEventArgs e)
+    {
+        elapsedTime = elapsedTime.Subtract(TimeSpan.FromSeconds(1));
+
+        if (elapsedTime.TotalSeconds <= 0)
+        {
+            UpdateDirection(currentOpen);
+            elapsedTime = TimeSpan.FromSeconds((double)interval!);
+            timer?.Start();
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    void ResetButtonClass() => buttonClasses.Keys.ToList().ForEach(key => buttonClasses[key] = "btn-danger");
+
+    void UpdateDirection(string? currentOpenDirection)
+    {
+        switch (currentOpenDirection)
+        {
+            case "A":
+                {
+                    if (selectedDirection == "AntiClockwise")
+                    {
+                        currentOpen = "D";
+                        nextOpen = "C";
+                    }
+                    else if (selectedDirection == "UpDown")
+                    {
+                        currentOpen = "C";
+                        nextOpen = "A";
+                    }
+                    else
+                    {
+                        currentOpen = "B";
+                        nextOpen = "C";
+                    }
+                    break;
+                }
+            case "B":
+                {
+                    if (selectedDirection == "AntiClockwise")
+                    {
+                        currentOpen = "A";
+                        nextOpen = "D";
+                    }
+                    else if (selectedDirection == "RightLeft")
+                    {
+                        currentOpen = "D";
+                        nextOpen = "B";
+                    }
+                    else
+                    {
+                        currentOpen = "C";
+                        nextOpen = "D";
+                    }
+                    break;
+                }
+            case "C":
+                {
+                    if (selectedDirection == "AntiClockwise")
+                    {
+                        currentOpen = "B";
+                        nextOpen = "A";
+                    }
+                    else if (selectedDirection == "UpDown")
+                    {
+                        currentOpen = "A";
+                        nextOpen = "C";
+                    }
+                    else
+                    {
+                        currentOpen = "D";
+                        nextOpen = "A";
+                    }
+                    break;
+                }
+            case "D":
+                {
+                    if (selectedDirection == "AntiClockwise")
+                    {
+                        currentOpen = "C";
+                        nextOpen = "B";
+                    }
+                    else if (selectedDirection == "RightLeft")
+                    {
+                        currentOpen = "B";
+                        nextOpen = "D";
+                    }
+                    else
+                    {
+                        currentOpen = "A";
+                        nextOpen = "B";
+                    }
+                    break;
+                }
+            default:
+                break;
+        }
+        ResetButtonClass();
+        buttonClasses[currentOpen!] = "btn-success";
+    }
+}
