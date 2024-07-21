@@ -10,5 +10,3 @@ The layout is designed with a clean and organized structure, utilizing Bootstrap
 # Preview look like:
 
 ![gif](https://github.com/Vijay-Kumavat/Traffic-Signal-Management/blob/main/wwwroot/assets/video.gif)
-  - Response view in video: https://shorturl.at/auLV2
-  - Check the instruction of the project: https://shorturl.at/xDLQ4
